@@ -21,26 +21,27 @@
 namespace ofxIlda {
 	
     class Frame {
-    public:
+public:
+		ofParameterGroup parameters;
         struct {
             struct {
-                bool lines; // draw lines
-                bool points;    // draw points
-                bool pointNumbers;  // draw point numbers (not implemented yet)
+                ofParameter<bool> lines; // draw lines
+                ofParameter<bool> points;    // draw points
+                ofParameter<bool> pointNumbers;  // draw point numbers (not implemented yet)
             } draw;
             
             struct {
-                ofFloatColor color; // color
-                int blankCount;     // how many blank points to send at path ends
-                int blankStopCount;     // how many blank points to send at path ends
-                int endCount;       // how many end repeats to send
-                bool doCapX;        // cap out of range on x (otherwise wraps around)
-                bool doCapY;        // cap out of range on y (otherwise wraps around)
+                ofParameter<ofFloatColor> color; // color
+                ofParameter<int> blankCount;     // how many blank points to send at path ends
+                ofParameter<int> blankStopCount;
+                ofParameter<int> endCount;       // how many end repeats to send
+                ofParameter<bool> doCapX;        // cap out of range on x (otherwise wraps around)
+                ofParameter<bool> doCapY;        // cap out of range on y (otherwise wraps around)
                 struct {
-                    bool doFlipX;
-                    bool doFlipY;
-                    ofVec2f offset;
-                    ofVec2f scale;
+                    ofParameter<bool> doFlipX;
+                    ofParameter<bool> doFlipY;
+                    ofParameter<glm::vec2> offset;
+                    ofParameter<glm::vec2> scale;
                 } transform;
             } output;
         } params;
@@ -60,14 +61,13 @@ namespace ofxIlda {
         
         //--------------------------------------------------------------
         void setDefaultParams() {
-            memset(&params, 0, sizeof(params));  // safety catch all default to zero
-            memset(&stats, 0, sizeof(stats));  // safety catch all default to zero
-            
-            params.draw.lines = true;
+//            memset(&params, 0, sizeof(params));  // safety catch all default to zero
+//            memset(&stats, 0, sizeof(stats));  // safety catch all default to zero
+			params.draw.lines = true;
             params.draw.points = true;
             params.draw.pointNumbers = false;
             
-            params.output.color.set(1, 1, 1, 1);
+            params.output.color.set(ofFloatColor(1, 1, 1, 1));
             params.output.blankCount = 30;
             params.output.blankStopCount = 10;
             params.output.endCount = 30;
@@ -76,9 +76,28 @@ namespace ofxIlda {
             
             params.output.transform.doFlipX = false;
             params.output.transform.doFlipY = false;
-            params.output.transform.offset.set(0, 0);
-            params.output.transform.scale.set(1, 1);
+            params.output.transform.offset.set(glm::vec2(0, 0));
+            params.output.transform.scale.set(glm::vec2(1, 1));
         }
+		void setup(){
+			parameters.setName("IldaFrame Params");
+			
+            parameters.add(params.draw.lines.set("Draw Lines", true));
+            parameters.add(params.draw.points.set("Draw Points",true));
+            parameters.add(params.draw.pointNumbers.set("Draw Point nums", false));
+            
+            parameters.add(params.output.color.set("Color", {1., 1., 1., 1.}, {0.,0.,0.,0.}, {1., 1., 1., 1.}));
+            parameters.add(params.output.blankCount.set("Blank Count",30, 0, 100));
+            parameters.add(params.output.endCount.set("End Count", 30, 0, 100));
+            parameters.add(params.output.doCapX.set("Do Cap X", false));
+            parameters.add(params.output.doCapY.set("Do Cap Y", false));
+            
+            parameters.add(params.output.transform.doFlipX.set("Do Flip X", false));
+            parameters.add(params.output.transform.doFlipY.set("Do Flip Y", false));
+            parameters.add(params.output.transform.offset.set("Offset", {0, 0}, {-1,-1},{1,1}));
+            parameters.add(params.output.transform.scale.set("Scale", {0, 0}, {0,0},{3,3}));
+
+		}
         
         
         //--------------------------------------------------------------
@@ -139,7 +158,7 @@ namespace ofxIlda {
             // get stats
             stats.pointCountOrig = 0;
             stats.pointCountProcessed = 0;
-            for(int i=0; i<processedPolys.size(); i++) {
+            for(size_t i=0; i<processedPolys.size(); i++) {
                 stats.pointCountOrig += origPolys[i].size();
                 stats.pointCountProcessed += processedPolys[i].size();
             }
@@ -160,15 +179,15 @@ namespace ofxIlda {
             
             if(params.draw.lines) {
                 ofSetLineWidth(2);
-                for(int i=0; i<processedPolys.size(); i++) {
+                for(size_t i=0; i<processedPolys.size(); i++) {
                     ofPolyline &poly = processedPolys[i];
 					ofFloatColor &pcolor = processedPolys[i].color;
 					ofSetColor(pcolor.r*255, pcolor.g*255, pcolor.b*255);
                     poly.draw();
-                    //            for(int i=0; i<data.size(); i++) {
-                    //                ofPoint p0 = data[i];
+                    //            for(size_t i=0; i<data.size(); i++) {
+                    //                glm::vec3 p0 = data[i];
                     //                if(i < data.size()-1) {
-                    //                    ofPoint p1 = data[i+1];
+                    //                    glm::vec3 p1 = data[i+1];
                     ////                    ofSetColor(p1.r * 255, p1.g * 255, p1.b * 255, p1.a * 255);
                     //                    ofDrawLine(p0.x, p0.y, p1.x, p1.y);
                     //                }
@@ -176,21 +195,21 @@ namespace ofxIlda {
                 }
             }
             if(params.draw.points) {
-                glPointSize(5);
-                for(int i=0; i<processedPolys.size(); i++) {
-                    ofPolyline &poly = processedPolys[i];
-                    ofFloatColor &pcolor = processedPolys[i].color;
-					ofSetColor(pcolor.r*255, pcolor.g*255, pcolor.b*255);
-                    
-					glBegin(GL_POINTS);
-                    for(int i=0; i<poly.size(); i++) {
-                        ofPoint &p = poly[i];
-                        //                Point &p = data[i];
-                        //                ofSetColor(p.r * 255, p.g * 255, p.b * 255, p.a * 255);
-                        glVertex2f(p.x, p.y);
-                    }
-                    glEnd();
-                }
+//                glPointSize(5);
+//                for(size_t i=0; i<processedPolys.size(); i++) {
+//                    ofPolyline &poly = processedPolys[i];
+//                    ofFloatColor &pcolor = processedPolys[i].color;
+//					ofSetColor(pcolor.r*255, pcolor.g*255, pcolor.b*255);
+//                    
+//					glBegin(GL_POINTS);
+//                    for(size_t i=0; i<poly.size(); i++) {
+//                        auto &p = poly[i];
+//                        //                Point &p = data[i];
+//                        //                ofSetColor(p.r * 255, p.g * 255, p.b * 255, p.a * 255);
+//                        glVertex2f(p.x, p.y);
+//                    }
+//                    //glEnd();
+//                }
             }
             
             ofPopMatrix();
@@ -230,29 +249,29 @@ namespace ofxIlda {
         }
 
         //--------------------------------------------------------------
-        Poly& addPoly(const vector<ofPoint> points) {
+        Poly& addPoly(const vector<glm::vec3> points) {
             return addPoly(Poly(points));
         }
         
         //--------------------------------------------------------------
-        Poly& addPoly(const vector<ofPoint> points, ofFloatColor color) {
+        Poly& addPoly(const vector<glm::vec3> points, ofFloatColor color) {
             return addPoly(Poly(points, color));
         }
         
         //--------------------------------------------------------------
         void addPolys(const vector<ofPolyline> &polylines) {
-            for(int i=0; i<polylines.size(); i++) addPoly(polylines[i]);
+            for(size_t i=0; i<polylines.size(); i++) addPoly(polylines[i]);
         }
         
         //--------------------------------------------------------------
         void addPolys(const vector<ofPolyline> &polylines, ofFloatColor color) {
-            for(int i=0; i<polylines.size(); i++) addPoly(polylines[i], color);
+            for(size_t i=0; i<polylines.size(); i++) addPoly(polylines[i], color);
         }
 
         
         //--------------------------------------------------------------
         void addPolys(const vector<Poly> &polys) {
-            for(int i=0; i<polys.size(); i++) addPoly(polys[i]);
+            for(size_t i=0; i<polys.size(); i++) addPoly(polys[i]);
         }
         
         //--------------------------------------------------------------
@@ -305,20 +324,20 @@ namespace ofxIlda {
         }
 
         //--------------------------------------------------------------
-        ofPoint transformPoint(ofPoint p) const {
+        glm::vec3 transformPoint(glm::vec3 p) const {
             // flip
             if(params.output.transform.doFlipX) p.x = 1 - p.x;
             if(params.output.transform.doFlipY) p.y = 1 - p.y;
             
             // scale
-            if(params.output.transform.scale.lengthSquared() > 0) {
-                p -= ofPoint(0.5, 0.5);
-                p *= params.output.transform.scale;
-                p += ofPoint(0.5, 0.5);
+            if(glm::length2(params.output.transform.scale.get()) > 0) {
+                p -= glm::vec3(0.5, 0.5, 0);
+                p *= glm::vec3(params.output.transform.scale.get(),0);
+                p += glm::vec3(0.5, 0.5, 0);
             }
             
             // offset
-            p += params.output.transform.offset;
+            p += glm::vec3(params.output.transform.offset.get(), 0);
             
 
 
@@ -348,7 +367,7 @@ namespace ofxIlda {
             ofPoint nextStartPoint;
             int activePolyCount = 0;
             bool bPrevEndSet = false;
-            for(int i=0; i<processedPolys.size(); i++) {
+            for(size_t i=0; i<processedPolys.size(); i++) {
                 ofPolyline &poly = processedPolys[i];
                 ofFloatColor &pcolor = processedPolys[i].color;
 
@@ -357,8 +376,8 @@ namespace ofxIlda {
                         prevEndPoint = poly.getVertices().front();
                         bPrevEndSet = true;
                     }
-                    ofPoint startPoint = transformPoint(poly.getVertices().front());
-                    ofPoint endPoint = transformPoint(poly.getVertices().back());
+                    glm::vec3 startPoint = transformPoint(poly.getVertices().front());
+                    glm::vec3 endPoint = transformPoint(poly.getVertices().back());
                     if (i==processedPolys.size()-1) {
                         nextStartPoint = endPoint;
                     } else {
